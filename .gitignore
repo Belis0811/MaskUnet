@@ -1,3 +1,4 @@
 COCO/
 *.txt
 *.pth
+*.json
