@@ -357,6 +357,7 @@ for epoch in range(num_epochs):
                 json.dump(detections, f)
             coco_pred_train = train_dataset.coco.loadRes('train_detections.json')
             coco_eval_train = COCOeval(train_dataset.coco, coco_pred_train, 'segm')
+            coco_eval_train.params.iouThrs = np.linspace(0.30, 0.95, 10)
             coco_eval_train.evaluate()
             coco_eval_train.accumulate()
             coco_eval_train.summarize()
