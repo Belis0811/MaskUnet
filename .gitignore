@@ -2,3 +2,9 @@ COCO/
 *.txt
 *.pth
 *.json
+
+ADE20K/data/*
+
+cityscapes/data/*
+
+cocoapi/*
