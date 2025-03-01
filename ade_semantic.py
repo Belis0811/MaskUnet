@@ -15,101 +15,83 @@ import cv2
 import json
 from panopticapi.utils import rgb2id
 
-BATCH_SIZE = 14
+BATCH_SIZE = 8
 IMG_WIDTH = 128
 IMG_HEIGHT = 128
 
-TRAIN_PATH = './COCO/'
-TEST_PATH = './COCO/'
 
 warnings.filterwarnings('ignore', category=UserWarning, module='skimage')
 seed = 42
-class COCOSegmentationDataset(Dataset):
-    def __init__(self, panoptic_json, panoptic_root, img_dir, transforms=None, img_size=(128, 128)):
+
+ADEK_ROOT = './ADEK'
+IMG_DIR_TRAIN = os.path.join(ADEK_ROOT, 'images', 'training')
+ANN_DIR_TRAIN = os.path.join(ADEK_ROOT, 'annotations', 'training')
+
+IMG_DIR_VAL = os.path.join(ADEK_ROOT, 'images', 'validation')
+ANN_DIR_VAL = os.path.join(ADEK_ROOT, 'annotations', 'validation')
+
+# Use the dataset class from the previous snippet, for example:
+class ADE20KSegmentationDataset(Dataset):
+    def __init__(self, objectinfo_txt, img_dir, ann_dir, transforms=None, img_size=(128, 128)):
         self.img_dir = img_dir
-        self.panoptic_root = panoptic_root
+        self.ann_dir = ann_dir
         self.transforms = transforms
         self.img_width, self.img_height = img_size
-        self.panoptic_json = panoptic_json
-        
-        with open(panoptic_json, 'r') as f:
-            self.panoptic_data = json.load(f)
 
-        self.images = self.panoptic_data["images"]
+        # Load categories from objectinfo150.txt
+        with open(objectinfo_txt, 'r') as f:
+            # Assuming each non-empty line corresponds to one category name.
+            categories = [line.strip() for line in f if line.strip()]
+        self.categories = categories
+        # For ADE20K, the segmentation mask pixel values represent the category id.
+        # Create a mapping from category id (here, simply the index) to label id.
+        self.cat2label = {i: i for i in range(len(categories))}
 
-        self.annotations = {}
-        for ann in self.panoptic_data["annotations"]:
-            self.annotations[ann["image_id"]] = ann
-
-        self.categories = self.panoptic_data["categories"]
-
-        all_cat_ids = sorted(cat["id"] for cat in self.categories)
-        self.cat2label = {cat_id: idx for idx, cat_id in enumerate(all_cat_ids)}
-
+        # List all image files (adjust extensions as needed)
+        self.img_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg') or f.endswith('.png')])
+    
     def __len__(self):
-        return len(self.images)
-
+        return len(self.img_files)
+    
     def __getitem__(self, idx):
-        img_info = self.images[idx]
-        image_id = img_info["id"]
-        w, h = img_info["width"], img_info["height"]
-        img_filename = img_info["file_name"]
-
+        img_filename = self.img_files[idx]
         img_path = os.path.join(self.img_dir, img_filename)
         image_bgr = cv2.imread(img_path)
         if image_bgr is None:
             raise FileNotFoundError(f"Could not find {img_path}")
         image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-
-        ann_info = self.annotations[image_id]
-        seg_filename = ann_info["file_name"]
-        seg_path = os.path.join(self.panoptic_root, seg_filename)
-        seg_bgr = cv2.imread(seg_path, cv2.IMREAD_COLOR)
-        if seg_bgr is None:
-            raise FileNotFoundError(f"Could not find {seg_path}")
-
-        seg_rgb = cv2.cvtColor(seg_bgr, cv2.COLOR_BGR2RGB)
-        seg_id_map = rgb2id(seg_rgb)
-
-        # Semantic Mask: Stores category labels
-        semantic_mask = np.zeros((h, w), dtype=np.int32)
-        # Instance Mask: Stores unique object IDs
-        instance_mask = np.zeros((h, w), dtype=np.int32)
-
-        for seg in ann_info["segments_info"]:
-            cat_id = seg["category_id"]
-            seg_id = seg["id"]
-            label_id = self.cat2label[cat_id]
-
-            mask_pixels = (seg_id_map == seg_id)
-            semantic_mask[mask_pixels] = label_id
-            instance_mask[mask_pixels] = seg_id  # Unique instance ID
-
+        
+        # Assume the annotation has the same base name with a .png extension
+        ann_filename = os.path.splitext(img_filename)[0] + '.png'
+        ann_path = os.path.join(self.ann_dir, ann_filename)
+        mask = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            raise FileNotFoundError(f"Could not find {ann_path}")
+        
+        # Resize image and mask
         image_rgb = cv2.resize(image_rgb, (self.img_width, self.img_height), interpolation=cv2.INTER_LINEAR)
-        semantic_mask = cv2.resize(semantic_mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
-        instance_mask = cv2.resize(instance_mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
-
+        mask = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
+        
         if self.transforms:
             image_rgb = self.transforms(image_rgb)
+        
+        mask = torch.from_numpy(mask).long()
+        return image_rgb, mask
 
-        semantic_mask = torch.from_numpy(semantic_mask).long()
-        instance_mask = torch.from_numpy(instance_mask).long()
-
-        return image_rgb, semantic_mask, instance_mask
-
-train_dataset = COCOSegmentationDataset(
-    panoptic_json=os.path.join(TRAIN_PATH, 'annotations', 'panoptic_train_subset.json'),
-    panoptic_root=os.path.join(TRAIN_PATH, 'panoptic_train_subset'), 
-    img_dir=os.path.join(TRAIN_PATH, 'train_subset'),
+train_dataset = ADE20KSegmentationDataset(
+    objectinfo_txt=os.path.join(ADEK_ROOT, 'objectInfo150.txt'),
+    img_dir=os.path.join(ADEK_ROOT, 'images', 'training'),
+    ann_dir=os.path.join(ADEK_ROOT, 'annotations', 'training'),
     transforms=ToTensor(),
-    img_size=(IMG_HEIGHT, IMG_WIDTH)
+    img_size=(128, 128)
 )
-val_dataset = COCOSegmentationDataset(
-    panoptic_json=os.path.join(TRAIN_PATH,  'annotations', 'panoptic_val2017.json'),
-    panoptic_root=os.path.join(TRAIN_PATH, 'panoptic_val2017'), 
-    img_dir=os.path.join(TRAIN_PATH, 'val2017'),
+
+val_dataset = ADE20KSegmentationDataset(
+    objectinfo_txt=os.path.join(ADEK_ROOT, 'objectInfo150.txt'),
+    img_dir=os.path.join(ADEK_ROOT, 'images', 'validation'),
+    ann_dir=os.path.join(ADEK_ROOT, 'annotations', 'validation'),
     transforms=ToTensor(),
-    img_size=(IMG_HEIGHT, IMG_WIDTH)
+    img_size=(128, 128)
 )
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
@@ -121,28 +103,24 @@ import numpy as np
 
 def visualize_random_sample(dataset):
     idx = random.randint(0, len(dataset) - 1)
-    image, semantic_mask, instance_mask = dataset[idx]  
-    
+    image, mask = dataset[idx]
     if isinstance(image, torch.Tensor):
+        # Permute to [H, W, C]
         image_np = image.permute(1, 2, 0).cpu().numpy()
+        # If it's in range [0,1], scale for display:
         if image_np.max() <= 1.0:
             image_np = (image_np * 255).astype(np.uint8)
     else:
         image_np = image
-
-    plt.figure(figsize=(15, 5))
-
-    plt.subplot(1, 3, 1)
+        
+    plt.figure(figsize=(10, 4))
+    plt.subplot(1, 2, 1)
     plt.imshow(image_np)
     plt.title("Image")
 
-    plt.subplot(1, 3, 2)
-    plt.imshow(semantic_mask.cpu().numpy() if isinstance(semantic_mask, torch.Tensor) else semantic_mask)
-    plt.title("Semantic Mask")
-
-    plt.subplot(1, 3, 3)
-    plt.imshow(instance_mask.cpu().numpy() if isinstance(instance_mask, torch.Tensor) else instance_mask)
-    plt.title("Instance Mask")
+    plt.subplot(1, 2, 2)
+    plt.imshow(mask.cpu().numpy() if isinstance(mask, torch.Tensor) else mask)
+    plt.title("Mask")
 
     plt.show()
 
@@ -363,103 +341,13 @@ class EarlyStopping:
     def save_checkpoint(self, model):
         if self.verbose:
             print(f'Saving model...')
-        torch.save(model.state_dict(), 'checkpoint_pan.pth')
-
-import cv2
-
-def generate_instance_mask(semantic_mask):
-    instance_mask = np.zeros_like(semantic_mask, dtype=np.int32)
-    unique_classes = np.unique(semantic_mask)
-
-    for class_id in unique_classes:
-        if class_id == 0: 
-            continue
-        binary_mask = (semantic_mask == class_id).astype(np.uint8)
-        num_labels, labels = cv2.connectedComponents(binary_mask)
-        for label in range(1, num_labels):
-            instance_mask[labels == label] = label 
-
-    return instance_mask
-
-import os
-import cv2
-import numpy as np
-from panopticapi.utils import id2rgb
-
-def save_predictions(image_id, segmentation_map):
-    """ Save the predicted segmentation mask in COCO format """
-    os.makedirs("predictions", exist_ok=True)  #Ensure folder exists
-    save_path = f"predictions/{image_id}.png"
-
-    # Convert instance mask to RGB format for COCO evaluation
-    segmentation_rgb = id2rgb(segmentation_map)
-
-    # Save the predicted mask
-    cv2.imwrite(save_path, segmentation_rgb)
-
-    return save_path
-
-from panopticapi.evaluation import pq_compute
-import json
-
-def evaluate_panoptic(model, val_loader, dataset, device):
-    model.eval()
-    predictions = []
-    
-    os.makedirs("predictions", exist_ok=True) #Ensure predictions folder exists
-
-    with torch.no_grad():
-        for images, sem_masks, inst_masks in tqdm(val_loader):
-            images = images.to(device)
-            sem_logits = model(images)
-            sem_preds = torch.argmax(sem_logits, dim=1).cpu().numpy()
-
-            for i in range(len(images)):
-                image_id = dataset.images[i]["id"]
-
-                # Convert prediction to proper format
-                pred_segmentation = sem_preds[i]
-
-                # Save predicted segmentation mask
-                pred_segmentation_path = save_predictions(image_id, pred_segmentation)
-
-                predictions.append({
-                    "image_id": image_id,
-                    "file_name": f"{image_id}.png",
-                    "segments_info": []  # You need to fill instance details
-                })
-
-    # Save JSON file
-    pred_file = "predictions.json"
-    with open(pred_file, "w") as f:
-        json.dump({"annotations": predictions}, f)
-
-    # Run Panoptic Quality computation
-    pq_results = pq_compute(gt_json_file=dataset.panoptic_json, pred_json_file=pred_file)
-    
-    print(f"PQ: {pq_results['All']} | Things: {pq_results['Things']} | Stuff: {pq_results['Stuff']}")
-
-from pycocotools.cocoeval import COCOeval
-
-def compute_ap(gt_json, pred_json):
-    coco_gt = COCO(gt_json)
-    coco_pred = coco_gt.loadRes(pred_json)
-
-    coco_eval = COCOeval(coco_gt, coco_pred, "segm")  
-    coco_eval.params.iouThrs = np.linspace(0.30, 0.95, 10)
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
-
-    return coco_eval.stats[0]
-
-
+        torch.save(model.state_dict(), 'checkpoint_ade.pth')
 # from segmentation_models_pytorch import Unet
 
 # pretrained_model = Unet(encoder_name="mit_b5", encoder_weights="imagenet",in_channels=3,classes=len(train_dataset.cat2label))
 # pretrained_weights = pretrained_model.state_dict()
 import torch.backends.cudnn as cudnn
-#from torch_lr_finder import LRFinder
+# from torch_lr_finder import LRFinder
 
 c_in = 3  # input channel 3 for RGB
 c_out = len(train_dataset.cat2label)
@@ -471,10 +359,15 @@ else:
     raise RuntimeError("Multiple GPUs are required.")
 
 model = UNet(c_in, c_out)
-checkpoint = torch.load('checkpoint_pan.pth')
+checkpoint = torch.load('checkpoint_ade.pth')
 modified_state_dict = {key.replace('module.', ''): value for key, value in checkpoint.items()}
-
 model.load_state_dict(modified_state_dict)
+# model_dict = model.state_dict()
+# checkpoint = torch.load('checkpoint_pan.pth')
+# modified_state_dict = {key.replace('module.', ''): value for key, value in checkpoint.items()}
+# filtered_state_dict = {k: v for k, v in modified_state_dict.items() if not k.startswith('final_layer.')}
+
+# model.load_state_dict(filtered_state_dict, strict=False)
 
 # def map_pretrained_to_check(pretrained_dict, custom_dict):
 #     mapped_weights = {}
@@ -521,49 +414,8 @@ model = torch.nn.DataParallel(model)
 
 #         dice_score = (2. * intersection + self.smooth) / (union + self.smooth)
 #         return 1 - dice_score.mean()
-class InstanceContrastiveLoss(nn.Module):
-    def __init__(self, margin=1.0):
-        super().__init__()
-        self.margin = margin
-        self.loss_fn = nn.TripletMarginLoss(margin=self.margin)
-
-    def forward(self, sem_mask, instance_mask):
-        unique_instances = torch.unique(instance_mask)
-        loss = 0.0
-        count = 0
-
-        for inst in unique_instances:
-            if inst == 0:  # Ignore background
-                continue
-
-            inst_pixels = (instance_mask == inst).nonzero(as_tuple=True)
-            if len(inst_pixels[0]) < 2:
-                continue  # Ignore small instances
-
-            # Select anchor and positive samples
-            anchor = sem_mask[:, :, inst_pixels[0][0], inst_pixels[1][0]]
-            positive = sem_mask[:, :, inst_pixels[0][1], inst_pixels[1][1]]
-
-            # Correcting Negative Sample Selection
-            negative_pixels = (instance_mask != inst).nonzero(as_tuple=True)
-            if len(negative_pixels[0]) == 0:  
-                continue  # If no negatives exist, skip this instance
-
-            negative_idx = torch.randint(0, len(negative_pixels[0]), (1,))
-            negative = sem_mask[:, :, negative_pixels[0][negative_idx], negative_pixels[1][negative_idx]]
-
-            # Ensure same shape for triplet margin loss
-            anchor = anchor.view(1, -1)
-            positive = positive.view(1, -1)
-            negative = negative.view(1, -1)
-
-            loss += self.loss_fn(anchor, positive, negative)
-            count += 1
-
-        return loss / count if count > 0 else torch.tensor(0.0, device=sem_mask.device)
     
-semantic_loss_fn = nn.CrossEntropyLoss()
-instance_loss_fn = InstanceContrastiveLoss()
+criterion = nn.CrossEntropyLoss()
 # criterion = DiceLoss()
 
 # optimizer = optim.Adam(model.parameters(), lr=1e-03)
@@ -584,33 +436,30 @@ num_epochs = 1000
 model.to(device1)
 best_loss = float("inf")
 best_iou = 0.0
-log_file = open("training_log_panoptic.txt", "w")
+log_file = open("training_log_adek.txt", "w")
 for epoch in range(0,num_epochs):
     model.train()
     total_loss = 0.0
     total_iou = 0.0
-    for i,(inputs,  semantic_labels, instance_labels) in enumerate(tqdm(train_loader)):
-        inputs, semantic_labels, instance_labels = inputs.to(device1), semantic_labels.to(device1), instance_labels.to(device1)
+    for i,(inputs, labels) in enumerate(tqdm(train_loader)):
+        inputs, labels = inputs.to(device1), labels.to(device1)
         optimizer.zero_grad()
-        semantic_logits = model(inputs)
+        outputs = model(inputs)
 
-        semantic_loss = semantic_loss_fn(semantic_logits, semantic_labels)
-        instance_loss = instance_loss_fn(semantic_logits, instance_labels)
-        
-        loss = 0.9 * semantic_loss + 0.1 * instance_loss
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
         
-        iou = mean_iou(semantic_logits, semantic_labels, c_out)
+        iou = mean_iou(outputs, labels, c_out)
         
         total_loss += loss.item()
         total_iou += iou
 
-        if i % 5000 == 0 and i != 0:
+        if i % 500 == 0 and i != 0:
             print(f"Epoch {epoch+1}: Batch[{i}/{len(train_loader)}] Loss: {total_loss / i} IoU: {total_iou / i}")
             if i % 2000 == 0:
                 print(f'Saving model...')
-                torch.save(model.state_dict(), 'checkpoint_pan.pth')
+                torch.save(model.state_dict(), 'checkpoint_ade.pth')
     avg_loss = total_loss / len(train_loader)
     avg_iou = total_iou / len(train_loader)
     print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {avg_loss} IoU: {avg_iou}")
@@ -632,13 +481,6 @@ for epoch in range(0,num_epochs):
     if early_stopping(avg_loss, model):
         print('Early stopping triggered')
         break
-    
-    #if epoch % 1 == 0 and epoch != 0:
-     #   pq_results = evaluate_panoptic(model, train_loader, train_dataset, device1)
-      #  ap = compute_ap(train_dataset.panoptic_json, "predictions.json")
-       # print(f"Validation PQ: {pq_results['All']} | AP: {ap}")
-        #log_file.write(f"Epoch [{epoch+1}/{num_epochs}] Validation PQ: {pq_results['All']} | AP: {ap}\n\n")
-
     
 # torch.save(model.state_dict(), 'model.pth')
 print(f'Best loss is {best_loss}, best iou is {best_iou}')

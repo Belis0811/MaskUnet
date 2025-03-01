@@ -2,3 +2,5 @@ COCO/
 *.txt
 *.pth
 *.json
+ADEK/
+Cityscapes/
