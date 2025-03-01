@@ -4,3 +4,6 @@ COCO/
 *.json
 ADEK/
 Cityscapes/
+cocoapi/
+cityscapes/
+ADE20K/
