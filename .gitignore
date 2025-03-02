@@ -7,3 +7,10 @@ Cityscapes/
 cocoapi/
 cityscapes/
 ADE20K/
+city_semantic.py
+city_instance.py
+ade_semantic.py
+ade_instance.py
+vit.py
+test.ipynb
+ade*.py

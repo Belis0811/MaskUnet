@@ -23,8 +23,6 @@ IMG_HEIGHT = 128
 warnings.filterwarnings('ignore', category=UserWarning, module='skimage')
 seed = 42
 random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
 
 CITYSCAPES_ROOT = './Cityscapes'
 IMG_DIR_TRAIN = os.path.join(CITYSCAPES_ROOT, 'leftImg8bit', 'train')
@@ -32,7 +30,6 @@ ANN_DIR_TRAIN = os.path.join(CITYSCAPES_ROOT, 'gtFine', 'train')
 IMG_DIR_VAL = os.path.join(CITYSCAPES_ROOT, 'leftImg8bit', 'val')
 ANN_DIR_VAL = os.path.join(CITYSCAPES_ROOT, 'gtFine', 'val')
 
-# Define the 19 classes for Cityscapes semantic segmentation
 CITYSCAPES_CLASSES = [
     "road", "sidewalk", "building", "wall", "fence", "pole", "traffic light",
     "traffic sign", "vegetation", "terrain", "sky", "person", "rider", "car",
@@ -40,21 +37,20 @@ CITYSCAPES_CLASSES = [
 ]
 
 # -------------------------------
-# Cityscapes Segmentation Dataset (Semantic)
+# Cityscapes Instance Segmentation Dataset
 # -------------------------------
 class CityscapesSegmentationDataset(Dataset):
-    def __init__(self, img_dir, ann_dir, transforms=None, img_size=(IMG_HEIGHT, IMG_WIDTH)):
+    def __init__(self, img_dir, ann_dir, transforms=None, img_size=(128, 128)):
         self.img_dir = img_dir
         self.ann_dir = ann_dir
         self.transforms = transforms
         self.img_width, self.img_height = img_size
 
-        # List all image files recursively from the img_dir.
+        # List all image files recursively from the image directory.
         self.img_files = sorted(glob.glob(os.path.join(img_dir, '*', '*.png')))
         
+        # Store categories and build a mapping.
         self.categories = CITYSCAPES_CLASSES
-        # For Cityscapes, the semantic mask pixel values (in _gtFine_labelTrainIds.png)
-        # already represent the train IDs (0 to 18). We assume a direct mapping.
         self.cat2label = {i: i for i in range(len(self.categories))}
 
     def __len__(self):
@@ -67,30 +63,38 @@ class CityscapesSegmentationDataset(Dataset):
             raise FileNotFoundError(f"Could not find {img_path}")
         image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
         
-        # Get the city folder from the image path.
-        city = os.path.basename(os.path.dirname(img_path))
-        base = os.path.basename(img_path)
-        # Replace the suffix to get the corresponding annotation file.
-        ann_filename = base.replace('_leftImg8bit.png', '_gtFine_labelTrainIds.png')
+        # Compute relative path from the image directory.
+        rel_path = os.path.relpath(img_path, self.img_dir)  # e.g., "ulm/ulm_000003_000019_leftImg8bit.png"
+        city = os.path.dirname(rel_path)  # e.g., "ulm"
+        img_basename = os.path.basename(rel_path)  # e.g., "ulm_000003_000019_leftImg8bit.png"
+        
+        # Remove "leftImg8bit" from the base name.
+        base = os.path.splitext(img_basename)[0].replace("leftImg8bit", "")
+        base = base.strip('_')  # remove any leading/trailing underscores if needed
+        ann_filename = base + "_gtFine_labelIds.png"
         ann_path = os.path.join(self.ann_dir, city, ann_filename)
+        
         if not os.path.exists(ann_path):
             raise FileNotFoundError(f"Could not find {ann_path}")
         
-        mask = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
-        if mask is None:
+        semantic_mask = cv2.imread(ann_path, cv2.IMREAD_GRAYSCALE)
+        if semantic_mask is None:
             raise FileNotFoundError(f"Could not load annotation from {ann_path}")
         
-        # Resize image and mask
+        semantic_mask = np.where((semantic_mask >= 0) & (semantic_mask < 19), semantic_mask, 255)
+        
+        # Resize image and mask.
         image_rgb = cv2.resize(image_rgb, (self.img_width, self.img_height), interpolation=cv2.INTER_LINEAR)
-        mask = cv2.resize(mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
+        semantic_mask = cv2.resize(semantic_mask, (self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
         
         if self.transforms:
             image_rgb = self.transforms(image_rgb)
         else:
             image_rgb = ToTensor()(image_rgb)
         
-        mask = torch.from_numpy(mask).long()
-        return image_rgb, mask
+        semantic_mask = torch.from_numpy(semantic_mask).long()
+        return image_rgb, semantic_mask
+
 
 train_dataset = CityscapesSegmentationDataset(
     img_dir=IMG_DIR_TRAIN,
@@ -323,8 +327,16 @@ else:
     raise RuntimeError("Multiple GPUs are required.")
 
 model = UNet(c_in, c_out)
+
+model_dict = model.state_dict()
+checkpoint = torch.load('checkpoint_pan.pth')
+modified_state_dict = {key.replace('module.', ''): value for key, value in checkpoint.items()}
+filtered_state_dict = {k: v for k, v in modified_state_dict.items() if not k.startswith('final_layer.')}
+
+model.load_state_dict(filtered_state_dict, strict=False)
+
 model = torch.nn.DataParallel(model)
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(ignore_index=255)
 optimizer = optim.AdamW(model.parameters(), lr=1e-5, weight_decay=1e-4)
 early_stopping = EarlyStopping(patience=10, verbose=True)
 

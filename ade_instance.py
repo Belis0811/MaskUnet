@@ -301,14 +301,14 @@ else:
     raise RuntimeError("Multiple GPUs are required.")
 
 model = UNet(c_in, c_out)
-model_dict = model.state_dict()
+# model_dict = model.state_dict()
 
-checkpoint = torch.load('checkpoint_pan.pth')
+checkpoint = torch.load('checkpoint_ade_inst.pth')
 modified_state_dict = {key.replace('module.', ''): value for key, value in checkpoint.items()}
-pretrained_dict = {k: v for k, v in modified_state_dict.items() if k in model_dict and model_dict[k].shape == v.shape}
-# model.load_state_dict(modified_state_dict)
-model_dict.update(pretrained_dict)
-model.load_state_dict(model_dict)
+# pretrained_dict = {k: v for k, v in modified_state_dict.items() if k in model_dict and model_dict[k].shape == v.shape}
+model.load_state_dict(modified_state_dict)
+# model_dict.update(pretrained_dict)
+# model.load_state_dict(model_dict)
 
 model = torch.nn.DataParallel(model)
 criterion = nn.CrossEntropyLoss()
@@ -402,7 +402,7 @@ def evaluate_instances(model, data_loader, device, max_queries):
     all_gt = []
     image_ids = []
     for images, gt_masks in tqdm(data_loader, desc="Evaluating"):
-        images = list(img.to(device) for img in images)
+        images = images.to(device)
         with torch.no_grad():
             outputs = model(images)  # outputs: [B, c, H, W]
             probs = torch.softmax(outputs/0.5, dim=1).cpu().numpy()  # [B, c, H, W]

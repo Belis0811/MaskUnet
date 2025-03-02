@@ -22,7 +22,7 @@ import pycocotools.mask as maskUtils
 BATCH_SIZE = 11
 IMG_WIDTH = 128
 IMG_HEIGHT = 128
-LAMBDA_IE = 1.0  # weight for instance contrastive loss
+LAMBDA_IE = 0.5
 
 warnings.filterwarnings('ignore', category=UserWarning, module='skimage')
 seed = 42
