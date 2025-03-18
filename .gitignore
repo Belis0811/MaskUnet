@@ -8,3 +8,5 @@ ADE20K/data/*
 cityscapes/data/*
 
 cocoapi/*
+
+Segformer_Code/*
