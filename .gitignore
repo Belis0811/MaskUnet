@@ -1,12 +1,9 @@
-COCO/
-*.txt
-*.pth
-*.json
+/data/ADEK/*
 
-ADE20K/data/*
+!/data/ADEK/ade_download.ipynb
 
-cityscapes/data/*
+/data/COCO/*
 
-cocoapi/*
+!/data/COCO/coco_download.ipynb
 
-Segformer_Code/*
+/Segformer_Code/*
