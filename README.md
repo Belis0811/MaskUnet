@@ -4,7 +4,6 @@ This repository provides an innovative segmentaion framework called **MaskAttn-U
 By integrating a mask attention module into the traditional U-Net architecture, our MaskAttn-Unet not only maintains a moderate memory footprint during inference but also taking care of the fine-grained local details, particularly suitable for resource-constained environments, building upon our paper:
 >[MaskAttn-UNet: A Mask Attention-Driven Framework for Universal Low-Resolution Image Segmentation]
 >
-> Anonymous
 
 
 ## Overview
@@ -105,6 +104,3 @@ MaskAttn-UNet is outperforming most of the state-of-the-art models for panoptic 
 
 Segmentation performance of MaskAttn-UNet on different fractions of the *panoptic_train2017* dataset. These trends illustrates the significant data efficiency of MaskAttn-UNet, making it a practical choice for circumstances with limited annotated data. 
 
-## Final Notes
-* Correspondence and requests for materials should be addressed to Professor Anonymous  ( Anonymous@uAn.edu) 
-* The latest weights file is currently private and will be made public at a later date. If you require access to the newest version, please contact Anonymous (Anonymous@uAn.edu) or Professor Anonymous (Anonymous@uAn.edu).
