@@ -107,4 +107,4 @@ Segmentation performance of MaskAttn-UNet on different fractions of the *panopti
 
 ## Final Notes
 * Correspondence and requests for materials should be addressed to Professor Anonymous  ( Anonymous@uAn.edu) 
-* The latest weights file is currently private and will be made public at a later date. If you require access to the newest version, please contact Anonymous (anonymous@uAn.edu) or Professor Anonymous (Anonymous@uAn.edu).
+* The latest weights file is currently private and will be made public at a later date. If you require access to the newest version, please contact Anonymous (Anonymous@uAn.edu) or Professor Anonymous (Anonymous@uAn.edu).
