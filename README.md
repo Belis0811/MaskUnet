@@ -9,7 +9,7 @@ By integrating a mask attention module into the traditional U-Net architecture, 
 
 ## Overview
 Paper is implemented with official pytorch
-![Overview Image](docs/figures/overview.png?raw=true "Overview of the proposed MaskAttn-UNet")
+![Overview Image](figures/overview.png?raw=true "Overview of the proposed MaskAttn-UNet")
 
 This high-level overview figure clearly illustrates the detailed architecture of the proposed MaskAttn-UNet. Specifically, **section (a)** outlines the comprehensive encoder-decoder structure based on the traditional U-Net model, **section (b)** presents the internal structure of the Mask Attention Module, and **section (c)** provides a detailed illustration of our Mask-Attn UNet with the multi-scale encoder-decoder design.
 
@@ -97,7 +97,7 @@ python ade_semantic.py
 ```
 
 ## Results
-![alt text](figurescomparison.png?raw=true "Comparison with SOTA Models")
+![alt text](figures/comparison.png?raw=true "Comparison with SOTA Models")
 
 MaskAttn-UNet is outperforming most of the state-of-the-art models for panoptic segmentation. The best results are highlighted in **bold**, and the second best are **underlined**.
 
@@ -106,5 +106,5 @@ MaskAttn-UNet is outperforming most of the state-of-the-art models for panoptic 
 Segmentation performance of MaskAttn-UNet on different fractions of the *panoptic_train2017* dataset. These trends illustrates the significant data efficiency of MaskAttn-UNet, making it a practical choice for circumstances with limited annotated data. 
 
 ## Final Notes
-* Correspondence and requests for materials should be addressed to Professor Paul Bogdan (email: pbogdan@usc.edu) 
-* The latest weights file is currently private and will be made public at a later date. If you require access to the newest version, please contact Anzhe (anzheche@usc.edu) or Professor Bogdan (pbogdan@usc.edu).
+* Correspondence and requests for materials should be addressed to Professor Anonymous  ( Anonymous@uAn.edu) 
+* The latest weights file is currently private and will be made public at a later date. If you require access to the newest version, please contact Anonymous (Anonymous@uAn.edu) or Professor Anonymous (Anonymous@uAn.edu).
