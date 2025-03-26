@@ -9,7 +9,7 @@ By integrating a mask attention module into the traditional U-Net architecture, 
 
 ## Overview
 Paper is implemented with official pytorch
-![Overview Image](docs/figures/overview.png?raw=true "Overview of the proposed MaskAttn-UNet")
+![Overview Image](figures/overview.png?raw=true "Overview of the proposed MaskAttn-UNet")
 
 This high-level overview figure clearly illustrates the detailed architecture of the proposed MaskAttn-UNet. Specifically, **section (a)** outlines the comprehensive encoder-decoder structure based on the traditional U-Net model, **section (b)** presents the internal structure of the Mask Attention Module, and **section (c)** provides a detailed illustration of our Mask-Attn UNet with the multi-scale encoder-decoder design.
 
@@ -97,7 +97,7 @@ python ade_semantic.py
 ```
 
 ## Results
-![alt text](figurescomparison.png?raw=true "Comparison with SOTA Models")
+![alt text](figures/figurescomparison.png?raw=true "Comparison with SOTA Models")
 
 MaskAttn-UNet is outperforming most of the state-of-the-art models for panoptic segmentation. The best results are highlighted in **bold**, and the second best are **underlined**.
 
