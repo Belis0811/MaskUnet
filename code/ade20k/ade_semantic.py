@@ -376,7 +376,7 @@ model = torch.nn.DataParallel(model) if torch.cuda.device_count() > 1 else model
     
 criterion = nn.CrossEntropyLoss()
 
-optimizer = optim.AdamW(model.parameters(), lr=1e-5, weight_decay=1e-4)
+optimizer = optim.AdamW(model.parameters(), lr=5e-5, weight_decay=1e-1)
 
 
 early_stopping = EarlyStopping(patience=10, verbose=True)

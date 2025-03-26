@@ -353,7 +353,7 @@ if os.path.exists('checkpoint_cityscapes_inst.pth'):
     model.load_state_dict(modified_state_dict)
 model = torch.nn.DataParallel(model)
 criterion = nn.CrossEntropyLoss(ignore_index=255)
-optimizer = optim.AdamW(model.parameters(), lr=1e-5, weight_decay=1e-4)
+optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-1)
 early_stopping = EarlyStopping(patience=10, verbose=True)
 model.to(device1)
 

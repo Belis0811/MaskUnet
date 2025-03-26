@@ -312,7 +312,7 @@ model = UNet(c_in, c_out)
 
 model = torch.nn.DataParallel(model)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(model.parameters(), lr=1e-5, weight_decay=1e-4)
+optimizer = optim.AdamW(model.parameters(), lr=1e-2, weight_decay=1e-1)
 early_stopping = EarlyStopping(patience=10, verbose=True)
 
 # -------------------------------
