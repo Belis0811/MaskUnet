@@ -84,7 +84,7 @@ Open and execute the notebook file `coco_download.ipynb`. This notebook will aut
 ### Cityscapes Dataset
 Open `cityscapes_download.ipynb` to download the two packages: `gtFine_trainvaltest.zip (241MB)` and `leftImg8bit_trainvaltest.zip (11GB)`.
 
-*Note: Recently, we found that the CITYSCAPES official website may be blocking scripted logins and downloads. If you encounter issues with both methods, please download the dataset manually from the [official ADE20K website](https://www.cityscapes-dataset.com/downloads/).*
+*Note: Recently, we found that the CITYSCAPES official website may be blocking scripted logins and downloads. If you encounter issues with both methods, please download the dataset manually from the [official Cityscapes website](https://www.cityscapes-dataset.com/downloads/).*
 
 
 ## Training
